@@ -7,8 +7,8 @@ DEFAULT_IP = "127.0.0.1"
 DEFAULT_PORT = 8822
 
 # Images paths
-BUTTON_IMAGE = "C:\\Users\\mishs\\PycharmProjects\\Cyber\\HomeWork_29_10\\Fixed Applications\\GUI - button.png"
-BACKGROUND_IMAGE = "C:\\Users\\mishs\\PycharmProjects\\Cyber\\HomeWork_29_10\\Fixed Applications\\GUI - BG.png"
+BUTTON_IMAGE = "GUI - button.png"
+BACKGROUND_IMAGE = "GUI - BG.png"
 
 # Font and text colors
 FONT = "Calibri"
