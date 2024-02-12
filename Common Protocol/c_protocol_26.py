@@ -2,7 +2,7 @@
 
 Protocol 2.6    .py
 
-last update:    09/02/2024
+last update:    12/02/2024
 
 """
 
@@ -20,13 +20,13 @@ class c_protocol_26(c_protocol, ABC):
     def __init__(self):
         super().__init__()
 
-    def create_request(self, cmd: str, args: str) -> str:
+    def create_request(self, cmd: str, args: str = None) -> str:
         """
         Creates a request message by formatting the command.
         """
         return format_data(cmd)
 
-    def create_response(self, cmd: str, args: str, skt: socket) -> str:
+    def create_response(self, cmd: str, args: list = None, skt: socket = None) -> str:
         """
         Create valid response information, will be sent by server,
         with length field. In case unsupported request "Non-supported cmd" will be sent back
