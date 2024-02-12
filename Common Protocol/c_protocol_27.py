@@ -2,7 +2,7 @@
 
 Protocol 2.6    .py
 
-last update:    09/02/2024
+last update:    12/02/2024
 
 """
 
@@ -29,7 +29,7 @@ class c_protocol_27(c_protocol, ABC):
         request = (valid_value == 2 or valid_value == 0) and (cmd + ">" + args) or "Command not supported"
         return format_data(request)
 
-    def create_response(self, cmd: str, args: str, skt: socket) -> str:
+    def create_response(self, cmd: str, args: list, skt: socket) -> str:
         """
         Create valid response information, will be sent by server,
         with length field. In case unsupported request "Non-supported cmd" will be sent back
@@ -47,7 +47,7 @@ class c_protocol_27(c_protocol, ABC):
         }
 
         if cmd in valid_cmds:
-            response = valid_cmds[cmd](args.split(','), skt)
+            response = valid_cmds[cmd](args, skt)
 
         write_to_log(f"  Protocol 2.7  · response to client : {response} ")
 
