@@ -3,7 +3,7 @@
 Class Protocol  .py
 - main protocol file
 
-last update:    09/02/2024
+last update:    12/02/2024
 
 """
 
@@ -36,7 +36,7 @@ PORT: int = 12345
 BUFFER_SIZE: int = 1024
 HEADER_SIZE = 4
 
-#  endregion Constants
+#  endregion
 
 #  Configure logging
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
@@ -63,11 +63,8 @@ def check_cmd(cmd: str) -> int:
     if cmd in VALID_COMMANDS_27:
         return 2
 
-    if cmd in VALID_COMMANDS_27:
-        return 3
-
     if cmd in VALID_COMMANDS_REGISTER:
-        return 4
+        return 3
 
     return -1
 
@@ -138,7 +135,7 @@ class c_protocol(ABC):
         pass
 
     @abstractmethod
-    def create_response(self, cmd: str, args: str, skt: socket) -> str:
+    def create_response(self, cmd: str, args: list, skt: socket) -> str:
         """
         Create valid response information, will be sent by server,
         with length field. In case unsupported request "Non-supported cmd" will be sent back
