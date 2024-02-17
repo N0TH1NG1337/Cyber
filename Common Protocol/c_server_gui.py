@@ -2,7 +2,7 @@
 
 Server GUI      .py
 
-last update:    12/02/2024
+last update:    17/02/2024
 
 """
 
@@ -50,6 +50,7 @@ class c_server_gui:
         self._stop_button = None
         self._ip_entry = None
         self._port_entry = None
+        self._receive_field = None
 
         self._back_img_size = [0, 0]
         self._btn_img_size = [0, 0]
@@ -123,6 +124,11 @@ class c_server_gui:
         self._port_entry.insert(0, str(PORT))
         self._port_entry.place(x=10 + 100, y=150 + 40)
 
+        # Receive
+        self._back_canvas.create_text(10, 150 + 80, text="Received:", font=FONT_BUTTON, fill=COLOR_BLACK, anchor="nw")
+        self._receive_field = Text(self._back_canvas, width=44, height=6, state="disabled")
+        self._receive_field.place(x=10 + 100, y=150 + 80)
+
     def __setup_images(self):
         """
         Setup server gui images and save their data
@@ -146,7 +152,7 @@ class c_server_gui:
         ip = self._ip_entry.get()
         port = int(self._port_entry.get())
 
-        self._server = c_server_bl(ip, port, None)
+        self._server = c_server_bl(ip, port, self.__receive_event)
 
         if self._server and self._server.success:
             server_handle_thread = threading.Thread(target=self._server.server_process)
@@ -160,6 +166,13 @@ class c_server_gui:
         self._port_entry.config(state="normal")
 
         self._server.update_server_flag(False)
+
+    def __receive_event(self, msg):
+
+        if msg:
+            self._receive_field.config(state="normal")
+            self._receive_field.insert("end", msg + "\n")
+            self._receive_field.config(state="disabled")
 
     def draw(self):
         """
