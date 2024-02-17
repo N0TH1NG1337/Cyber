@@ -154,7 +154,7 @@ class c_server_bl:
                 self._mutex.acquire()
                 try:
                     if self._receive_callback is not None:
-                        self._receive_callback(msg)
+                        self._receive_callback(f"{client_addr} - {msg}")
                 except Exception as e:
                     write_to_log(f"  Server    · some error occurred : {e}")
                 finally:
