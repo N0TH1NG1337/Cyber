@@ -1,8 +1,8 @@
 """
 
-Client BL       .py
+Client GUI       .py
 
-last update:    10/02/2024
+last update:    17/02/2024
 
 """
 
@@ -11,6 +11,8 @@ last update:    10/02/2024
 from c_client_bl import *
 from c_login_gui import *
 from tkinter import *
+
+from tkinter import messagebox
 
 #  endregion
 
@@ -184,12 +186,12 @@ class c_client_gui:
         self._btn_img_size = [self._btn_img.width(), self._btn_img.height()]
 
     def __event_args_focus_in(self, event):
-        if self._args_entry.get() == "seperate with ','":
+        if self._args_entry.get() == "separate with ','":
             self._args_entry.delete(0, 'end')
 
     def __event_args_focus_out(self, event):
         if self._args_entry.get() == "":
-            self._args_entry.insert(0, "seperate with ','")
+            self._args_entry.insert(0, "separate with ','")
 
     def __connect_event(self):
         """
@@ -219,6 +221,7 @@ class c_client_gui:
                 self._send_button.config(state="normal")
 
         except Exception as e:
+
             write_to_log(f"  Client    · an error has occurred : {e}")
 
     def __disconnect_event(self):
@@ -256,13 +259,13 @@ class c_client_gui:
 
         if message:
             self._receive_field.config(state="normal")
-            self._receive_field.insert("end", message + "\n_______\n")
+            self._receive_field.insert("end", " · " + message + "\n")
             self._receive_field.config(state="disabled")
 
     def __login_event(self):
         """
         Login event function,
-        Set up a login winodw on button press
+        Set up a login window on button press
         """
 
         # Avoid creating more than one login
