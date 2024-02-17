@@ -2,7 +2,7 @@
 
 Client BL       .py
 
-last update:    10/02/2024
+last update:    17/02/2024
 
 """
 
@@ -142,13 +142,56 @@ class c_client_bl:
             if not success:
                 raise Exception("failed to get buffer size")
 
+            if message.startswith("PHOTO_INFORMATION"):
+                """
+                We will receive a photo from the server,
+                
+                In old version it contained only a true or false
+                state for the photo, therefore we had to wait
+                until the socket will time out.
+                
+                Here will get the file size and receive it by that.
+                
+                """
+
+                # We get information from the server before the photo data
+                information = message.split('>')
+
+                # First argument is the file size
+                file_size = int(information[1])
+
+                # Third argument is the new file name
+                # We just don't want to get it to this
+                # function as argument :)
+                new_file_name = information[3]
+
+                # Note ! We also get as second argument the original file name
+                # Can be used for debugging if something will go wrong
+
+                # -1 file size mean that the server didn't find the photo
+                if information[1] == -1:
+                    return "Failed to find photo"
+
+                # If we found we want to receive it and get status based result
+                status = self.__protocol_27.receive_photo(self._socket_obj, file_size, new_file_name)
+
+                # Write to log the information
+                write_to_log(f"  Client    · photo status : {status}")
+
+                # Return the status
+                return status
+
+            # If we didn't want to receive the photo
+            # Just log and return the regular information
             write_to_log(f"  Client    · received from server : {message}")
 
             return message
+
         except Exception as e:
 
             # Handle failure
             write_to_log(f"  Client    · failed to receive from server : {e}")
             return ""
+
 
 #  endregion
