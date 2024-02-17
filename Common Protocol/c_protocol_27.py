@@ -1,8 +1,8 @@
 """
 
-Protocol 2.6    .py
+Protocol 2.7    .py
 
-last update:    12/02/2024
+last update:    17/02/2024
 
 """
 
@@ -151,12 +151,16 @@ class c_protocol_27(c_protocol, ABC):
         """
 
         file_name = args[0]
+        new_file_name = args[1]
 
         if os.path.exists(file_name):
             # photo exist
 
+            # Get file size
+            file_size = os.path.getsize(file_name)
+
             # Send conformation for the client to wait for data
-            my_socket.send(format_data(f"PHOTO_EXISTS>{file_name}").encode(FORMAT))
+            my_socket.send(format_data(f"PHOTO_INFORMATION>{file_size}>{file_name}>{new_file_name}").encode(FORMAT))
 
             # Send the data
             with open(file_name, 'rb') as file:
@@ -169,38 +173,41 @@ class c_protocol_27(c_protocol, ABC):
         else:
             # photo doesn't exist
             # Send cancel to client
-            my_socket.send(format_data(f"PHOTO_NOT_FOUND>{file_name}").encode(FORMAT))
+            my_socket.send(format_data(f"PHOTO_INFORMATION>{-1}>{file_name}>{new_file_name}").encode(FORMAT))
 
         return "d"  # we just lose it since we don't need it
 
-    def receive_photo(self, my_socket: socket, file_name: str):
+    def receive_photo(self, my_socket: socket, file_size: int, file_name: str):
         """
         receive photo from server
 
         :param my_socket: client socket to receive
+        :param file_size: the waited file size
         :param file_name: new file name
         :return: successful or failure
         """
 
-        with open(file_name, 'wb') as file:
-            try:
-                my_socket.settimeout(10)  # Set a timeout
+        try:
+            my_socket.settimeout(10)  # Set a timeout
 
-                # Just try to get data and then exit on exception
-                # if the server will send slower than the time-out
-                # we will lose data
+            # Receive the photo data in chunks based on file size
+            received_data = b''
+            while len(received_data) < file_size:
+                data = my_socket.recv(min(file_size - len(received_data), BUFFER_SIZE))
+                received_data += data
 
-                while True:
-                    data = my_socket.recv(BUFFER_SIZE)
-                    file.write(data)
+            # Write the received data to the file
+            with open(file_name, 'wb') as file:
+                file.write(received_data)
 
-            except socket.timeout:
+            if not os.path.exists(file_name):
+                raise socket.timeout()
 
-                # Check for success file creation
-                if os.path.exists(file_name):
-                    return "Photo received"
+            return "Photo received"
 
-                return "Photo couldn't be received"
+        except socket.timeout:
+
+            return "Photo couldn't be received"
 
     #  endregion
 
