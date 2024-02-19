@@ -2,7 +2,7 @@
 
 Client GUI       .py
 
-last update:    17/02/2024
+last update:    19/02/2024
 
 """
 
@@ -208,8 +208,8 @@ class c_client_gui:
 
             # check if we successfully created socket
             # and ready to go
-            if not self._client.success:
-                raise Exception("failed to setup client socket and client bl")
+            if not self._client.get_success():
+                raise Exception("failed to create and setup client bl")
             else:
 
                 # Handle gui elements
@@ -221,8 +221,15 @@ class c_client_gui:
                 self._send_button.config(state="normal")
 
         except Exception as e:
+            # Must have since we can also get an error
+            # for incorrect casting from string to int
 
-            write_to_log(f"  Client    · an error has occurred : {e}")
+            # If our problem occurred before the client
+            # mean that our client will be None
+            error = self._client and self._client.get_last_error() or e
+
+            write_to_log(f"  Client    · an error has occurred : {error}")
+            messagebox.showerror("Error on Connect", error)
 
     def __disconnect_event(self):
         """
@@ -241,6 +248,8 @@ class c_client_gui:
             self._send_button.config(state="disabled")
 
             self._client = None
+        else:
+            messagebox.showerror("Error on Disconnect", self._client.get_last_error())
 
     def __send_data_event(self):
         """
