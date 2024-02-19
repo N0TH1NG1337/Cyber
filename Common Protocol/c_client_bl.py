@@ -2,7 +2,7 @@
 
 Client BL       .py
 
-last update:    17/02/2024
+last update:    19/02/2024
 
 """
 
@@ -26,7 +26,9 @@ class c_client_bl:
         self.__protocol_26 = c_protocol_26()
         self.__protocol_27 = c_protocol_27()
 
-        self.success = self.__connect(ip, port)
+        self._last_error = ""
+
+        self._success = self.__connect(ip, port)
 
     def __connect(self, ip: str, port: int) -> bool:
         """
@@ -54,6 +56,8 @@ class c_client_bl:
             # Handle failure
             self._socket_obj = None
             write_to_log(f"  Client    · failed to connect client; ex:{e}")
+
+            self._last_error = f"An error occurred in client bl [connect function]\nError : {e}"
 
             return False
 
@@ -85,6 +89,8 @@ class c_client_bl:
 
             # Handle failure
             write_to_log(f"  Client    · failed to disconnect : {e}")
+            self._last_error = f"An error occurred in client bl [disconnect function]\nError : {e}"
+
             return False
 
     def send_data(self, cmd: str, args_string: str) -> bool:
@@ -127,6 +133,8 @@ class c_client_bl:
 
             # Handle failure
             write_to_log(f"  Client    · failed to send to server {e}")
+            self._last_error = f"An error occurred in client bl [send_data function]\nError : {e}"
+
             return False
 
     def receive_data(self) -> str:
@@ -191,7 +199,13 @@ class c_client_bl:
 
             # Handle failure
             write_to_log(f"  Client    · failed to receive from server : {e}")
+            self._last_error = f"An error occurred in client bl [receive_data function]\nError : {e}"
             return ""
 
+    def get_success(self):
+        return self._success
+
+    def get_last_error(self):
+        return self._last_error
 
 #  endregion
