@@ -2,7 +2,7 @@
 
 Server GUI      .py
 
-last update:    17/02/2024
+last update:    19/02/2024
 
 """
 
@@ -10,6 +10,8 @@ last update:    17/02/2024
 
 from c_server_bl import *
 from tkinter import *
+
+from tkinter import messagebox
 
 #  endregion
 
@@ -154,9 +156,12 @@ class c_server_gui:
 
         self._server = c_server_bl(ip, port, self.__receive_event)
 
-        if self._server and self._server.success:
-            server_handle_thread = threading.Thread(target=self._server.server_process)
-            server_handle_thread.start()
+        if self._server:
+            if self._server.get_success():
+                server_handle_thread = threading.Thread(target=self._server.server_process)
+                server_handle_thread.start()
+            else:
+                messagebox.showerror("Error on Start", self._server.get_last_error())
 
     def __stop_event(self):
         self._start_button.config(state="normal")
