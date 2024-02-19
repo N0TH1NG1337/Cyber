@@ -2,7 +2,7 @@
 
 Server BL       .py
 
-last update:    12/02/2024
+last update:    19/02/2024
 
 """
 
@@ -33,7 +33,8 @@ class c_server_bl:
         self._receive_callback = receive_callback
         self._mutex = threading.Lock()
 
-        self.success = self.__start_server(ip, port)
+        self._last_error = ""
+        self._success = self.__start_server(ip, port)
 
     def __start_server(self, ip: str, port: int) -> bool:
         """
@@ -60,6 +61,8 @@ class c_server_bl:
             # Handle failure
             self._server_socket = None
             write_to_log(f"  Server    · failed to start up sever : {e}")
+
+            self._last_error = f"An error occurred in server bl [start_server function]\nError : {e}"
 
             return False
 
@@ -106,6 +109,9 @@ class c_server_bl:
 
             # Handle failure
             write_to_log(f"  Server    · failed to set up server {e}")
+
+            self._last_error = f"An error occurred in server bl [server_process function]\nError : {e}"
+
             return False
 
     def __time_accept(self, time: int):
@@ -202,5 +208,11 @@ class c_server_bl:
 
     def update_server_flag(self, flag: bool):
         self.__server_running_flag = flag
+
+    def get_success(self):
+        return self._success
+
+    def get_last_error(self):
+        return self._last_error
 
 #  endregion
