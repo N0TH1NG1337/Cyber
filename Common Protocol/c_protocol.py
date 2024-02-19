@@ -39,8 +39,9 @@ HEADER_SIZE = 4
 #  endregion
 
 #  Configure logging
+# Note ! encoding=FORMAT cause problem (worked before)
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s', encoding=FORMAT)
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 #  region default protocol functions
 
