@@ -2,7 +2,7 @@
 
 Client BL       .py
 
-last update:    19/02/2024
+last update:    26/02/2024
 
 """
 
@@ -166,19 +166,27 @@ class c_client_bl:
                 information = message.split('>')
 
                 # First argument is the file size
-                file_size = int(information[1])
-
-                # Third argument is the new file name
-                # We just don't want to get it to this
-                # function as argument :)
-                new_file_name = information[3]
+                file_size = -1
+                try:
+                    file_size = int(information[1])
+                except Exception as e:
+                    return "error on casting file size"
 
                 # Note ! We also get as second argument the original file name
                 # Can be used for debugging if something will go wrong
 
                 # -1 file size mean that the server didn't find the photo
-                if information[1] == -1:
+                if file_size == -1:
                     return "Failed to find photo"
+
+                # -2 file size mean that the server didn't receive the new file name
+                if file_size == -2:
+                    return "Invalid new file name"
+
+                # Third argument is the new file name
+                # We just don't want to get it to this
+                # function as argument :)
+                new_file_name = information[2]
 
                 # If we found we want to receive it and get status based result
                 status = self.__protocol_27.receive_photo(self._socket_obj, file_size, new_file_name)
