@@ -2,7 +2,7 @@
 
 Server BL       .py
 
-last update:    19/02/2024
+last update:    26/02/2024
 
 """
 
@@ -20,7 +20,12 @@ import threading
 #  region Server BL Class
 
 class c_server_bl:
-    def __init__(self, ip: str, port: int, receive_callback):
+    def __init__(self,
+                 ip: str,
+                 port: int,
+                 receive_callback,
+                 client_connect_callback,
+                 client_disconnect_callback):
 
         self.__ip: str = ip
 
@@ -31,7 +36,8 @@ class c_server_bl:
         self.__server_running_flag: bool = False
 
         self._receive_callback = receive_callback
-        self._mutex = threading.Lock()
+        self._client_connect_callback = client_connect_callback
+        self._client_disconnect_callback = client_disconnect_callback
 
         self._last_error = ""
         self._success = self.__start_server(ip, port)
@@ -89,9 +95,13 @@ class c_server_bl:
                 # Check if we didn't time out
                 if client_socket:
 
+                    client_info = (client_socket, client_addr)
+
                     # Start a new thread for a new client
-                    new_client_thread = threading.Thread(target=self.__handle_client, args=(client_socket, client_addr))
+                    new_client_thread = threading.Thread(target=self.__handle_client, args=client_info)
                     new_client_thread.start()
+
+                    self._client_connect_callback(client_addr)
 
                     write_to_log(f"  Server    · active connection {threading.active_count() - 2}")
 
@@ -157,20 +167,18 @@ class c_server_bl:
                 # if we managed to get the message :
                 write_to_log(f"  Server    · received from client : {client_addr} - {msg}")
 
-                self._mutex.acquire()
-                try:
-                    if self._receive_callback is not None:
-                        self._receive_callback(f"{client_addr} - {msg}")
-                except Exception as e:
-                    write_to_log(f"  Server    · some error occurred : {e}")
-                finally:
-                    self._mutex.release()
+                if self._receive_callback is not None:
+                    self._receive_callback(f"{client_addr} - {msg}")
 
                 # Parse from buffer
                 cmd, args = convert_data(msg)
 
                 # If the client wants to disconnect
                 if cmd == DISCONNECT_MSG:
+
+                    if self._client_disconnect_callback is not None:
+                        self._client_disconnect_callback(client_addr)
+
                     connected = False
                 else:
                     write_to_log(f"  Server    · client requested : {cmd} - {args}")
