@@ -2,7 +2,7 @@
 
 Protocol 2.7    .py
 
-last update:    19/02/2024
+last update:    26/02/2024
 
 """
 
@@ -151,7 +151,14 @@ class c_protocol_27(c_protocol, ABC):
         """
 
         file_name = args[0]
-        new_file_name = args[1]
+
+        try:
+            # if second argument is invalid
+            # we will get error
+            new_file_name = args[1]
+        except Exception as e:
+            my_socket.send(format_data(f"PHOTO_INFORMATION>{-2}>{file_name}").encode(FORMAT))
+            return ""
 
         if os.path.exists(file_name):
             # photo exist
@@ -160,7 +167,7 @@ class c_protocol_27(c_protocol, ABC):
             file_size = os.path.getsize(file_name)
 
             # Send conformation for the client to wait for data
-            my_socket.send(format_data(f"PHOTO_INFORMATION>{file_size}>{file_name}>{new_file_name}").encode(FORMAT))
+            my_socket.send(format_data(f"PHOTO_INFORMATION>{file_size}>{new_file_name}").encode(FORMAT))
 
             # Send the data
             with open(file_name, 'rb') as file:
@@ -173,9 +180,9 @@ class c_protocol_27(c_protocol, ABC):
         else:
             # photo doesn't exist
             # Send cancel to client
-            my_socket.send(format_data(f"PHOTO_INFORMATION>{-1}>{file_name}>{new_file_name}").encode(FORMAT))
+            my_socket.send(format_data(f"PHOTO_INFORMATION>{-1}>{file_name}").encode(FORMAT))
 
-        return "d"  # we just lose it since we don't need it
+        return ""  # we just lose it since we don't need it
 
     def receive_photo(self, my_socket: socket, file_size: int, file_name: str):
         """
