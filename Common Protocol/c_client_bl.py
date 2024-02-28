@@ -2,9 +2,10 @@
 
 Client BL       .py
 
-last update:    26/02/2024
+last update:    28/02/2024
 
 """
+import threading
 
 #  region Libraries
 
@@ -17,7 +18,7 @@ from c_protocol_27 import *
 #  region Client BL Class
 class c_client_bl:
 
-    def __init__(self, ip: str, port: int):
+    def __init__(self, ip: str, port: int, receive_callback, disconnect_callback):
         # Here will be not only the init process of data
         # but also the connect event
 
@@ -28,7 +29,13 @@ class c_client_bl:
 
         self._last_error = ""
 
+        self._receive_callback = receive_callback
+        self._disconnect_callback = disconnect_callback
+
         self._success = self.__connect(ip, port)
+
+        if self._success:
+            threading.Thread(target=self.__handle_responses).start()
 
     def __connect(self, ip: str, port: int) -> bool:
         """
@@ -60,6 +67,24 @@ class c_client_bl:
             self._last_error = f"An error occurred in client bl [connect function]\nError : {e}"
 
             return False
+
+    def __handle_responses(self):
+        """
+        We want to process every server response,
+        even if we didn't send to it anything.
+        """
+
+        while self._socket_obj is not None:
+
+            message = self.receive_data()
+
+            # If the server want to disconnect
+            # he will "request" from the client to
+            # start the process of disconnection
+            if message == DISCONNECT_MSG:
+                self._disconnect_callback()
+            else:
+                self._receive_callback(message)
 
     def disconnect(self) -> bool:
         """
@@ -148,7 +173,7 @@ class c_client_bl:
             success, message = receive_buffer(self._socket_obj)
 
             if not success:
-                raise Exception("failed to get buffer size")
+                return ""
 
             if message.startswith("PHOTO_INFORMATION"):
                 """
