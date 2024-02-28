@@ -2,7 +2,7 @@
 
 Client GUI       .py
 
-last update:    19/02/2024
+last update:    28/02/2024
 
 """
 
@@ -204,7 +204,9 @@ class c_client_gui:
             # Handle failure on casting from string to int
 
             self._client = c_client_bl(self._ip_entry.get(),
-                                       int(self._port_entry.get()))
+                                       int(self._port_entry.get()),
+                                       self.__receive_data_event,
+                                       self.__disconnect_event)
 
             # check if we successfully created socket
             # and ready to go
@@ -260,11 +262,12 @@ class c_client_gui:
         cmd = self._cmd_entry.get()
         args = self._args_entry.get()
 
-        if cmd != "" and self._client.send_data(cmd, args):
-            self._window.after(100, self.__receive_data_event)
+        if cmd != "":
+            # self._window.after(100, self.__receive_data_event)
+            self._client.send_data(cmd, args)
 
-    def __receive_data_event(self):
-        message = self._client.receive_data()
+    def __receive_data_event(self, message):
+        # message = self._client.receive_data()
 
         if message:
             self._receive_field.config(state="normal")
