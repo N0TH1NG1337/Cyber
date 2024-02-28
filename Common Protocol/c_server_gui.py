@@ -2,7 +2,7 @@
 
 Server GUI      .py
 
-last update:    26/02/2024
+last update:    28/02/2024
 
 """
 
@@ -56,9 +56,13 @@ class c_server_gui:
         self._receive_field = None
 
         self._client_table = None
+        self._kick_button = None
 
         self._back_img_size = [0, 0]
         self._btn_img_size = [0, 0]
+
+        # Last client selected
+        self._last_client = None
 
         self.__setup_window()
 
@@ -149,6 +153,15 @@ class c_server_gui:
 
         self._client_table.heading("port", text="client port")
         self._client_table.column("port", width=120, minwidth=120)
+
+        self._kick_button = Button(self._back_canvas,
+                                   text="Disconnect", font=FONT_BUTTON, command=self.__kick_client_event, bd=0,
+                                   image=self._btn_img, borderwidth=0, compound="center", fg="#c0c0c0",
+                                   width=self._btn_img_size[0], height=self._btn_img_size[1],
+                                   highlightthickness=0)
+        self._kick_button.place(x=10 + 100, y=150 + 80 * 6)
+
+        self._client_table.bind("<<TreeviewSelect>>", self.__focus_client_event)
 
     def __setup_images(self):
         """
@@ -283,6 +296,32 @@ class c_server_gui:
 
         # we didn't find our user. log error
         write_to_log(f"  Server    · failed to find client by ip / port : {client_addr}")
+
+    def __kick_client_event(self):
+        """
+        Force the client to disconnect from the server
+        """
+
+        if self._last_client is not None:
+
+            # if we did, get the client data
+            values = self._client_table.item(self._last_client)["values"]
+            client_addr = (values[0], values[1])
+
+            self._server.kick_client(client_addr)
+
+            # we have done working with that client
+            # we can reset to None for future new client
+            self._last_client = None
+
+    def __focus_client_event(self, *args):
+        """
+        Focus on client in the table event handler
+        """
+
+        # get the last client that
+        # was focused in the table by TreeviewSelect event
+        self._last_client = self._client_table.selection()[0]
 
     def draw(self):
         """
