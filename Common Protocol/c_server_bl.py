@@ -2,7 +2,7 @@
 
 Server BL       .py
 
-last update:    26/02/2024
+last update:    28/02/2024
 
 """
 
@@ -39,6 +39,9 @@ class c_server_bl:
         self._client_connect_callback = client_connect_callback
         self._client_disconnect_callback = client_disconnect_callback
 
+        # Active Clients sockets list
+        self._clients_list = {}
+
         self._last_error = ""
         self._success = self.__start_server(ip, port)
 
@@ -72,6 +75,25 @@ class c_server_bl:
 
             return False
 
+    def __time_accept(self, time: int):
+        """
+            Timeout function for server to accept clients,
+            Much better solution than setting a timeout
+            and catching an exception
+            """
+
+        try:
+            self._server_socket.settimeout(time)
+
+            ready, _, _ = select([self._server_socket], [], [], time)
+
+            if ready:
+                return self._server_socket.accept()
+
+            return None, None
+        except Exception as e:
+            return None, None
+
     def server_process(self) -> bool:
         """
         Handles the server listen and connect client process,
@@ -103,6 +125,8 @@ class c_server_bl:
 
                     self._client_connect_callback(client_addr)
 
+                    self.__update_client_information(client_addr, client_socket)
+
                     write_to_log(f"  Server    · active connection {threading.active_count() - 2}")
 
             # Close server socket on server end
@@ -123,25 +147,6 @@ class c_server_bl:
             self._last_error = f"An error occurred in server bl [server_process function]\nError : {e}"
 
             return False
-
-    def __time_accept(self, time: int):
-        """
-            Timeout function for server to accept clients,
-            Much better solution than setting a timeout
-            and catching an exception
-            """
-
-        try:
-            self._server_socket.settimeout(time)
-
-            ready, _, _ = select([self._server_socket], [], [], time)
-
-            if ready:
-                return self._server_socket.accept()
-
-            return None, None
-        except Exception as e:
-            return None, None
 
     def __handle_client(self, client_socket, client_addr):
         """
@@ -175,10 +180,6 @@ class c_server_bl:
 
                 # If the client wants to disconnect
                 if cmd == DISCONNECT_MSG:
-
-                    if self._client_disconnect_callback is not None:
-                        self._client_disconnect_callback(client_addr)
-
                     connected = False
                 else:
                     write_to_log(f"  Server    · client requested : {cmd} - {args}")
@@ -207,9 +208,52 @@ class c_server_bl:
                         # Send the response
                         client_socket.send(return_msg.encode(FORMAT))
 
+        if self._client_disconnect_callback is not None:
+            self._client_disconnect_callback(client_addr)
+
+        self.__delete_client_information(client_addr)
+
         # Close client socket
         client_socket.close()
         write_to_log(f"  Server    · closed client {client_addr}")
+
+    def __update_client_information(self, client_addr: tuple, client_socket: socket):
+        """
+        Add / Update the client socket on certain index
+        """
+
+        index = f"{client_addr[0]}-{client_addr[1]}"
+        self._clients_list[index] = client_socket
+
+    def __delete_client_information(self, client_addr: tuple) -> bool:
+        """
+        Delete the client socket object from our list
+        """
+
+        try:
+            index = f"{client_addr[0]}-{client_addr[1]}"
+            self._clients_list[index] = None
+
+            return True
+        except Exception as e:
+            return False
+
+    def kick_client(self, client_addr: tuple) -> bool:
+        """
+        Force the client to preform a disconnection from the server
+        """
+
+        try:
+            index = f"{client_addr[0]}-{client_addr[1]}"
+            socket_obj = self._clients_list[index]
+
+            if socket_obj:
+                socket_obj.send(format_data(DISCONNECT_MSG).encode())
+
+            return True
+
+        except Exception:
+            return False
 
     def get_server_flag(self) -> bool:
         return self.__server_running_flag
