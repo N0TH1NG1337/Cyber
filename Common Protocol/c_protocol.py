@@ -3,7 +3,7 @@
 Class Protocol  .py
 - main protocol file
 
-last update:    12/02/2024
+last update:    28/02/2024
 
 """
 
@@ -89,7 +89,12 @@ def receive_buffer(my_socket: socket) -> (bool, str):
     Extracts a message from the socket and handles potential errors.
     """
 
+    if my_socket is None:
+        return False, ""
+
     try:
+        my_socket.settimeout(10)
+
         buffer_size = int(my_socket.recv(HEADER_SIZE).decode())
         logging.info("  Protocol  · Buffer size : {}".format(buffer_size))
 
@@ -97,6 +102,10 @@ def receive_buffer(my_socket: socket) -> (bool, str):
         logging.info("  Protocol  · Buffer data : {}".format(buffer))
 
         return True, buffer
+
+    except socket.timeout:
+        return False, ""
+
     except Exception as e:
 
         # On buffer size convert fail
