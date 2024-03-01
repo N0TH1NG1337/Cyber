@@ -318,10 +318,12 @@ class c_server_gui:
         """
         Focus on client in the table event handler
         """
+        selection = self._client_table.selection()
 
-        # get the last client that
-        # was focused in the table by TreeviewSelect event
-        self._last_client = self._client_table.selection()[0]
+        if selection:
+            # get the last client that
+            # was focused in the table by TreeviewSelect event
+            self._last_client = selection[0]
 
     def draw(self):
         """
