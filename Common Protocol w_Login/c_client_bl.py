@@ -131,6 +131,7 @@ class c_client_bl:
                 raise Exception("Please Enter valid arguments")
 
             protocols_enum = {
+                -1: "2.6",  # Default 2.6 protocol will handle non CMD
                 0: "2.6",
                 1: "2.6",
                 2: "2.7",
