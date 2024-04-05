@@ -15,7 +15,7 @@ from c_protocol_db import c_protocol_db
 #  endregion
 
 
-#  region Protocol DataBase
+#  region Protocol Manager
 
 class c_protocol_manager(c_protocol, ABC):
 
