@@ -2,6 +2,6 @@
 
 NOTE ! contains only Register option
 
-Changes : 
-  Added Event Manager 
-  Added Protocol Manager
+Changes :\n
+\tAdded Event Manager\n
+\tAdded Protocol Manager
