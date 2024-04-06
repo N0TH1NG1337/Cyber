@@ -1,7 +1,7 @@
 """
     Server_GUI.py - Server Application Later
 
-    last update : 05/04/2024
+    last update : 06/04/2024
 """
 
 #  region Libraries
@@ -28,6 +28,7 @@ COLOR_LIGHT_GRAY: str = "#c0c0c0"
 
 BUTTON_IMAGE: str = "..\\Images\\gui_button.png"
 BACKGROUND_IMAGE: str = "..\\Images\\gui_bg.png"
+
 
 #  endregion
 
@@ -233,11 +234,12 @@ class c_server_gui:
         self._ui["ip_entry"].config(state="disabled")
         self._ui["port_entry"].config(state="disabled")
 
-        self._server = c_server_bl(ip, port)
+        self._server = c_server_bl()
+        self._server.setup_server(ip, port)
 
         if self._server.get_success():
 
-            self._server.register_callback("receive",
+            self._server.register_callback("server_receive",
                                            self.__on_event_receive,
                                            "gui_receive")
 
@@ -249,7 +251,7 @@ class c_server_gui:
                                            self.__on_event_client_disconnect,
                                            "gui_client_disconnect")
 
-            threading.Thread(target=self._server.process_server).start()
+            threading.Thread(target=self._server.start_server).start()
 
         else:
 
@@ -268,7 +270,7 @@ class c_server_gui:
         self._ui["ip_entry"].config(state="normal")
         self._ui["port_entry"].config(state="normal")
 
-        self._server.stop_server_process()
+        self._server.stop_server()
 
     def __on_event_receive(self, event):
         """
@@ -285,7 +287,7 @@ class c_server_gui:
             Client Connect Event
         """
 
-        client_addr = event.get("client_addr")
+        client_addr = event.get("address")
 
         self._ui["client_table"].insert("", "end", values=(client_addr[0], client_addr[1]))
 
@@ -321,12 +323,34 @@ class c_server_gui:
         write_to_log(f"  Server    · failed to find client by ip / port : {client_addr}")
 
     def __on_event_focus_on_client(self, _):
-        pass
+        """
+            Focus on client in the Table
+        """
+
+        selection = self._ui["client_table"].selection()
+
+        if selection:
+            # get the last client that
+            # was focused in the table by TreeviewSelect event
+            self._last_client = selection[0]
+
+            self._ui["kick_button"].config(state="normal")
 
     def __on_event_client_kick(self):
-        pass
+        """
+            Force the client to disconnect
+        """
+
+        if self._last_client is not None:
+            values = self._ui["client_table"].item(self._last_client)["values"]
+
+            # self._server.kick_client((values[0], values[1]))
+
+            self._last_client = None
+            self._ui["kick_button"].config(state="disabled")
 
     #  endregion
+
 
 #  endregion
 
