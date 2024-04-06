@@ -27,6 +27,12 @@ class c_protocol_manager(c_protocol, ABC):
             3: c_protocol_db()
         }
 
+        self._protocols_names = {
+            "2.6": 1,
+            "2.7": 2,
+            "database": 3
+        }
+
         self._last_error = ""
 
     def get_protocol_type(self, cmd: str) -> int:
@@ -34,7 +40,7 @@ class c_protocol_manager(c_protocol, ABC):
             Gets Protocol Enum based on cmd
         """
 
-        if cmd == DISCONNECT_MSG:
+        if cmd == DISCONNECT_MSG or cmd == HELP_CMD_MSG:
             return 0
 
         if cmd in self._protocols[1].get_cmds():
@@ -64,10 +70,10 @@ class c_protocol_manager(c_protocol, ABC):
             return None
 
         if e_protocol_type == 0:
-            # Our Disconnect Message need to be handled manually
+            # Our Disconnect / Help Message need to be handled manually
             # Since there is no protocol that handles it
 
-            return format_data(encrypt_data(DISCONNECT_MSG, data))
+            return format_data(encrypt_data(cmd, data))
 
         value = self._protocols[e_protocol_type].create_request(cmd, args, data)
 
@@ -89,6 +95,19 @@ class c_protocol_manager(c_protocol, ABC):
             self._last_error = "Invalid Arguments"
             return None
 
+        if e_protocol_type == 0:
+            # Help Msg - since Disconnect MSG is handled already
+
+            result = ""
+
+            for name in self._protocols_names:
+                result += f"Protocol {name} :\n"
+                result += str(self._protocols[self._protocols_names[name]].get_cmds())
+
+                result += "\n\n"
+
+            return format_data(encrypt_data(result, data))
+
         return self._protocols[e_protocol_type].create_response(cmd, args, data)
 
     def get_last_error(self) -> str:
@@ -103,14 +122,8 @@ class c_protocol_manager(c_protocol, ABC):
             Returns Protocol Pointer based on version name
         """
 
-        if name == "2.6":
-            return self._protocols[1]
-
-        if name == "2.7":
-            return self._protocols[2]
-
-        if name == "database":
-            return self._protocols[3]
+        if name in self._protocols_names:
+            return self._protocols[self._protocols_names[name]]
 
         return None
 
