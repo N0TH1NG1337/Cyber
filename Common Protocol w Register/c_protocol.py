@@ -19,6 +19,7 @@ import socket
 #  region Constants
 
 DISCONNECT_MSG = "EXIT"  # Default Exit Msg
+HELP_CMD_MSG = "HELP"  # Default Help with commands Msg
 
 LOG_FILE: str = "LogFile.log"  # Log File Name
 FORMAT: str = "utf-8"  # Format
@@ -114,6 +115,7 @@ def try_to_get_key(data: dir) -> any:
         return None
 
 
+# TODO ! Create only 2 function and inside will be determination for type
 def encrypt_data(to_change: str, data: dir) -> str:
 
     key = try_to_get_key(data)
