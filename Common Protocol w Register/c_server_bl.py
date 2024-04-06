@@ -24,267 +24,295 @@ with open(LOG_FILE, "wb") as file:
 #  endregion
 
 
-#  region Client Object
+#  region Client Handle
 
-class c_client:
+class c_client_handle:
+    # Note ! it is better to use get(...) class function
+    # since it will return None on fail. Otherwise, it will raise an Exception on fail
 
-    def __init__(self, ip, port):
-        self._ip: str = ip or ""
-        self._port: int = port or -1
+    def __init__(self, protocol_manager):
+        self._client_info = {}
 
-        self._socket = None
-        self._key = None
+        self._event_manager = c_event_manager("receive", "disconnect")
+        self._protocol_manager: c_protocol_manager = protocol_manager
 
-    def set_socket(self, new_socket):
-        self._socket = new_socket
+    #  region Client Communication handle
 
-    def set_key(self, new_key):
-        self._key = new_key
+    def setup_handle(self, addr: tuple, socket_obj: socket):
 
-    def get_addr(self) -> tuple:
-        return self._ip, self._port
+        self._client_info["connected"] = True
+        self._client_info["logged_in"] = False
 
-    def get_socket(self):
-        return self._socket
+        self._client_info["ip"] = addr[0]
+        self._client_info["port"] = addr[1]
+        self._client_info["socket"] = socket_obj
 
-    def get_key(self):
-        return self._key
+        self._client_info["thread"] = threading.Thread(target=self.__process_handle)
+        self._client_info["thread"].start()
 
-    def is_this_client(self, ip, port):
-        return self._ip == ip and self._port == port
+    def __process_handle(self):
+        """
+            Client Process Handle,
+            Returns Is Client Active.
 
-    def is_valid(self):
-        return self._ip != "" and self._port != -1
+            Note ! Called inside thread
+        """
 
-#  endregion
+        self._client_info["username"] = f"{self._client_info['ip']} ({self._client_info['port']})"
 
-
-#  region Server_BL Class
-
-class c_server_bl:
-
-    def __init__(self, ip: str, port: int):
-
-        self._server_info: dir = {
-            "ip": ip,
-            "port": port,
-            "run_flag": False
-        }
-
-        # server socket object
-        self._socket_obj = None
-
-        # managers init
-        self._protocol_manager = c_protocol_manager()
-        self._event_manager = c_event_manager("receive",  # General Receive event
-                                              "client_connect",  # Client connects to Server event
-                                              "client_disconnect"  # Client disconnects to Server event
-                                              )
-
-        # Active Clients objects list
-        self._clients_list = []
-
-        self._last_error = ""
-        self._success = self.__start_server()
-
-    #  region Server BL Setup and Handle
-
-    def __start_server(self) -> bool:
-        write_to_log("  Server    · starting")
-
-        try:
-            # Create and connect socket
-            self._socket_obj = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket_obj.bind((self._server_info["ip"], self._server_info["port"]))
-
-            self._event_manager.register("client_connect",
-                                         self.__on_event_client_connect,
-                                         "bl_client_update", True)
-
-            self._event_manager.register("client_disconnect",
-                                         self.__on_event_client_disconnect,
-                                         "bl_client_delete", True)
-
-            # Return on success
-            return True
-
-        except Exception as e:
-
-            # Handle failure
-            self._socket_obj = None
-            write_to_log(f"  Server    · failed to start up sever : {e}")
-
-            self._last_error = f"Error\nfunction:start_server()\nError : {e}"
-
-            return False
-
-    def process_server(self):
-
-        try:
-
-            self._server_info["run_flag"] = True
-
-            # listen for clients
-            self._socket_obj.listen()
-
-            write_to_log(f"  Server    · listening on {self._server_info['ip']}")
-
-            while self._server_info["run_flag"]:
-
-                # Use time_out function for .accept() to close thread on no need
-                client_socket, client_addr = self.__timeout_accept(0.5)
-
-                if client_socket and client_addr:
-
-                    client_info = (client_socket, client_addr)
-
-                    client_connect_event = c_event()
-                    client_connect_event.add("client_socket", client_socket)
-                    client_connect_event.add("client_addr", client_addr)
-                    # client_connect_event.add("client_thread", new_client_thread)
-
-                    self._event_manager.call_event("client_connect", client_connect_event)
-
-                    # Start a new thread for a new client
-                    new_client_thread = threading.Thread(target=self.__handle_client, args=client_info)
-                    new_client_thread.start()
-
-            self._socket_obj.close()
-
-            write_to_log("  Server    · closed")
-            self._socket_obj = None
-
-        except Exception as e:
-
-            write_to_log(f"  Server    · failed to set up server {e}")
-            self._last_error = f"An error occurred in server bl [server_process function]\nError : {e}"
-
-    def stop_server_process(self):
-        self._server_info["run_flag"] = False
-
-    def __handle_client(self, client_socket, client_addr):
-
-        # This code run in separate for every client
-        write_to_log(f"  Server    · new connection : {client_addr} connected")
-
-        client_info: dir = {
-            "connected": True,
-            "logged": False,
-            "username": str(client_addr),
-            "socket": client_socket
-        }
-
-        while client_info["connected"]:
-
-            success, message = receive_raw_buffer(client_info["socket"])
+        while self._client_info["connected"]:
+            success, message = receive_raw_buffer(self._client_info["socket"])
 
             if success:
-                message = decrypt_data(message, client_info)
+                message = decrypt_data(message, self._client_info)
 
                 # Manual handles
                 cmd, args = parse_data(message)
 
-                write_to_log(f"  Server    · received from {client_addr} : {cmd}, {args}")
+                write_to_log(f"  Server    · received from {self._client_info['username']} : {cmd}, {args}")
 
                 receive_event = c_event()
                 receive_event.add("cmd", cmd)
                 receive_event.add("args", args)
-                receive_event.add("username", client_info["username"])
+                receive_event.add("username", self._client_info["username"])
 
                 self._event_manager.call_event("receive", receive_event)
 
                 if cmd == DISCONNECT_MSG:
-                    client_info["connected"] = False
+                    self._client_info["connected"] = False
                     continue
 
-                return_msg = self._protocol_manager.create_response(cmd, args, client_info)
+                return_msg = self._protocol_manager.create_response(cmd, args, self._client_info)
 
-                if not client_info["logged"]:
-
+                if not self._client_info["logged_in"]:
                     if self._protocol_manager.call("database").get_last_success():
 
                         _, raw_args = parse_data(return_msg)
 
-                        client_info["key"] = Fernet(raw_args[4].encode())
+                        self._client_info["key"] = Fernet(raw_args[3].encode())
 
-                        client_info["username"] = args[0]
-                        client_info["logged"] = True
-
-                # If the client logged in
+                        self._client_info["username"] = args[0]
+                        self._client_info["logged_in"] = True
 
                 if return_msg is not None:
                     write_to_log(f"  Server    · send to client : {return_msg}")
 
                     # Send the response
-                    client_socket.send(return_msg.encode(FORMAT))
+                    self._client_info["socket"].send(return_msg.encode(FORMAT))
+
+        # Disconnected
+        self._client_info["socket"].close()
+        write_to_log(f"  Server    · closed client {self._client_info['username']}")
 
         disconnect_event = c_event()
-        disconnect_event.add("client_addr", client_addr)
+        disconnect_event.add("client_index", self._client_info["client_index"])
+        disconnect_event.add("client_addr", (self._client_info['ip'], self._client_info['port']))
 
-        self._event_manager.call_event("client_disconnect", disconnect_event)
+        self._event_manager.call_event("disconnect", disconnect_event)
 
-        client_socket.close()
-        write_to_log(f"  Server    · closed client {client_addr}")
+    def force_disconnect(self):
+        pass
 
-    def kick_client(self, client_addr) -> bool:
+    #  endregion
+
+    def get(self, index) -> any:
         """
-            This function doesn't really Kicks the client.
-
-            It only requests from the client to disconnect
+            Returns Client Information based index name
         """
+
+        # Since Python cant handle by itself
+        # Need to create function that wraps the action
 
         try:
-            result = self.__find_client(client_addr[0], client_addr[1])
 
-            if result:
+            value = self._client_info[index]
+            return value
 
-                client = self._clients_list[result]
+        except Exception:
+            return None
 
-                client_socket = client.get_socket()
-                client_key = client.get_key()
+    def set(self, index, value) -> None:
+        """
+            Create/Update client information
+        """
 
-                if client_socket:
-                    client_socket.send(format_data(encrypt_data(DISCONNECT_MSG, {"key": client_key})))
+        self._client_info[index] = value
 
-                return True
+    def register_callback(self, event_name: str, function: any, function_name: str, get_args: bool = True):
+        self._event_manager.register(event_name, function, function_name, get_args)
 
-            raise Exception("")
+#  endregion
+
+
+#  region Server BL
+
+class c_server_bl:
+
+    def __init__(self):
+
+        self._server_info = {}
+
+        self._server_socket: socket = None
+
+        self._protocol_manager = c_protocol_manager()
+        self._event_manager = c_event_manager("server_receive",  # General Receive event
+                                              "client_connect",  # Client connects to Server event
+                                              "client_disconnect"  # Client disconnects to Server event
+                                              )
+
+        self._clients = []  # list of active clients
+
+        self._last_error: str = ""
+        self._success: bool = False
+
+    def setup_server(self, ip: str, port: int) -> None:
+        """
+            Setup Server Business Layer
+        """
+
+        write_to_log(f"  Server    · Server starting up")
+
+        try:
+
+            # preallocate important information
+            self._server_info["ip"] = ip
+            self._server_info["port"] = port
+            self._server_info["running"] = False
+
+            # setup server socket
+            self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._server_socket.bind((ip, port))
+
+            # register client connection callback function
+            self._event_manager.register("client_connect",
+                                         self.__on_event_client_connect,
+                                         "bl_client_connect", True)
+
+            # success on end
+            self._success = True
 
         except Exception as e:
 
-            return False
+            # handle failure
+            self._server_socket = None
 
-    #  endregion
+            # log error
+            write_to_log(f"  Server    · failed to start up sever : {e}")
+            self._last_error = f"Error\nfunction:start_server()\nError : {e}"
 
-    #  region Server Events
+            self._success = False
+
+    def start_server(self) -> None:
+        """
+            Start Server Process
+        """
+
+        try:
+
+            # set server status for running
+            self._server_info["running"] = True
+
+            # listen for clients
+            self._server_socket.listen()
+
+            write_to_log(f"  Server    · listening on {self._server_info['ip']}")
+
+            while self._server_info["running"]:
+
+                # accept new client / timeout listen if needed
+                client_socket, client_addr = self.__timeout_accept(0.5)
+
+                # if some client connected
+                if client_socket and client_addr:
+
+                    # create and call client connect event
+                    client_connect = c_event()
+                    client_connect.add("address", client_addr)
+                    client_connect.add("socket", client_socket)
+
+                    self._event_manager.call_event("client_connect", client_connect)
+
+        except Exception as e:
+
+            # handle failure and stop the server
+            self.stop_server()
+
+            write_to_log(f"  Server    · failed to set up server {e}")
+            self._last_error = f"An error occurred in server bl [server_process function]\nError : {e}"
+
+    def stop_server(self) -> None:
+        """
+            Stop Server Process
+        """
+
+        write_to_log(f"  Server    · closing")
+
+        # set server running status for False
+        self._server_info["running"] = False
+
+        # disconnect every connect client
+        for client in self._clients:
+            client.force_disconnect()
+
+        # close socket
+        if self._server_socket is not None:
+            self._server_socket.close()
+
+        # deallocate socket object
+        self._server_socket = None
+
+        write_to_log(f"  Server    · closed")
 
     def __on_event_client_connect(self, event):
         """
-            Add client information to Client_List
+            Client Connected
         """
 
-        (ip, port), socket_obj = event.get("client_addr"), event.get("client_socket")
+        # create new client handle object
+        new_client = c_client_handle(self._protocol_manager)
 
-        new_client = c_client(ip, port)
-        new_client.set_socket(socket_obj)
+        # add to our clients list the new client
+        self._clients.append(new_client)
 
-        self._clients_list.append(new_client)
+        # save in the client handle, the current object index
+        new_client.set("client_index", self._clients.index(new_client))
+
+        # register callback functions
+        new_client.register_callback("disconnect",
+                                     self.__on_event_client_disconnect,
+                                     "bl_client_disconnect", True)
+
+        new_client.register_callback("receive",
+                                     self.__on_event_server_receive,
+                                     "bl_server_receive", True)
+
+        # finish the setup handle and start the process of receiving data from client
+        new_client.setup_handle(event.get("address"), event.get("socket"))
 
     def __on_event_client_disconnect(self, event):
         """
-            Delete client from Client_List by indexing ip and port
+            Client Disconnected Event
         """
 
-        (ip, port) = event.get("client_addr")
+        # receive client index in the list
+        index = event.get("client_index")
 
-        result = self.__find_client(ip, port)
+        # create and call the client disconnect event
+        disconnect_event = c_event()
+        disconnect_event.add("client_addr", event.get("client_addr"))
 
-        if result:
-            self._clients_list.pop(result)
+        self._event_manager.call_event("client_disconnect", disconnect_event)
 
-    #  endregion
+        # delete the client from list
+        del self._clients[index]
 
-    #  region Server helpers
+    def __on_event_server_receive(self, event):
+        """
+            Server Received Event
+        """
+
+        # call and pass the event object of server receive event
+        self._event_manager.call_event("server_receive", event)
 
     def __timeout_accept(self, time: float) -> any:
         """
@@ -294,25 +322,21 @@ class c_server_bl:
         """
 
         try:
-            self._socket_obj.settimeout(time)
+            # set timeout
+            self._server_socket.settimeout(time)
 
-            ready, _, _ = select([self._socket_obj], [], [], time)
+            # get status if anything is ready
+            ready, _, _ = select([self._server_socket], [], [], time)
 
+            # if ready call .accept()
             if ready:
-                return self._socket_obj.accept()
+                return self._server_socket.accept()
 
             return None, None
         except Exception as e:
+
+            # if timed out
             return None, None
-
-    def __find_client(self, ip, port) -> any:
-        for index in range(len(self._clients_list)):
-            client = self._clients_list[index]
-
-            if client and client.is_this_client(ip, port):
-                return index
-
-        return None
 
     def register_callback(self, event_name: str, function: any, function_name: str, get_args: bool = True):
         self._event_manager.register(event_name, function, function_name, get_args)
@@ -322,7 +346,5 @@ class c_server_bl:
 
     def get_success(self) -> bool:
         return self._success
-
-    #  endregion
 
 #  endregion
