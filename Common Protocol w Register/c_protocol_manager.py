@@ -1,7 +1,7 @@
 """
     Protocol_Manager.py - protocol manager file
 
-    last update : 05/04/2024
+    last update : 20/04/2024
 """
 
 #  region Libraries
@@ -98,7 +98,7 @@ class c_protocol_manager(c_protocol, ABC):
         if e_protocol_type == 0:
             # Help Msg - since Disconnect MSG is handled already
 
-            result = ""
+            result = "Possible commands :\n"
 
             for name in self._protocols_names:
                 result += f"Protocol {name} :\n"
