@@ -1,7 +1,7 @@
 """
     Client_BL.py - Client Business Layer
 
-    last update : 05/04/2024
+    last update : 20/04/2024
 """
 import os.path
 
@@ -22,9 +22,7 @@ class c_client_bl:
 
     def __init__(self, ip: str, port: int):
 
-        # Here will be not only the init process of data
-        # but also the connect event
-
+        # Client Information [will be extended]
         self._client_info: dir = {
             "ip": ip,
             "port": port
@@ -40,15 +38,16 @@ class c_client_bl:
                                               "login"  # Client Logged in event
                                               )
 
-        self._last_error = ""
-        self._success = self.__connect()
+        self._last_error = ""  # Last Error that occurred in ClientBL
+        self._success = self.__connect()  # Run Connect and get status
 
-        self._thread_handle = None
+        self._thread_handle = None  # May use it later
         if self._success:
             self._thread_handle = threading.Thread(target=self.__handle_responses).start()
 
+        # Client Information File
         self._save_file: str = "client_json.txt"
-        self.__create_users_file()
+        self.__create_users_file()  # Init the file
 
     #  region client connections
 
@@ -123,12 +122,25 @@ class c_client_bl:
 
         try:
 
+            # Receives ready to send message formatted and encrypted if needed by Protocol Manager.
             message = self._protocol_manager.create_request(cmd,
                                                             arguments,
                                                             self._client_info)
+
+            # If our message is None,
+            # Something went wrong
             if message is None:
-                # The Create_Request function should not return None at any case
-                raise Exception(self._protocol_manager.get_last_error())
+
+                error = self._protocol_manager.get_last_error()
+
+                # We don't really want to pop up a messageBox in case
+                # of invalid command
+                if error == "Invalid Command":
+                    self.__update_field(error)
+                    return True
+
+                # Raise the last error that happened in Protocol Manager
+                raise Exception(error)
 
             # Encode message
             encoded_msg: bytes = message.encode()
@@ -136,8 +148,9 @@ class c_client_bl:
             # Send message
             self._socket_obj.send(encoded_msg)
 
-            # Note ! will print / log nonsense since we get from the .create_requests
-            # encrypted data
+            # Note ! will print / log nonsense since we get from the .create_requests encrypted data
+            # TODO ! Log and write before the encryption .
+            # TODO ! Or, encrypted only after the log operation
             write_to_log(f"  Client    · send to server : {message}")
 
             # Return on success
@@ -166,25 +179,31 @@ class c_client_bl:
             # In any case of fail, our message will be untouched
             message = decrypt_data(message, self._client_info)
 
-            # Manual handles
+            # Get Command and arguments received separated
             cmd, args = parse_data(message)
 
             if cmd == "REGISTRATION_INFO":
                 # Log in / Register Information
-                # Contains Key and response
+                # NOTE ! only Register returns key, login need to extract from client_info file
+
+                # In this case we have 2 options to get the key
+                # [1] - From Received Data
+                # [2] - From client_json.txt
+                # In any other case we receive None as key
+                key_value = try_to_extract(args, 3)
+                if key_value is None:
+                    key_value = try_to_extract(self.get_user_field(args[2]), "key")
 
                 if args[0] == "success":
-                    try:
-                        self._client_info["key"] = Fernet(args[4].encode())
-                    except Exception as e:
-                        self._client_info["key"] = None
+
+                    # Update client's Encryption / Decryption Key
+                    self._client_info["key"] = (key_value is None) and None or Fernet(key_value.encode())
 
                 login_event_data = c_event()
                 login_event_data.add("success", args[0])
                 login_event_data.add("type", args[1])
                 login_event_data.add("username", args[2])
-                login_event_data.add("password", args[3])
-                login_event_data.add("key", args[4])
+                login_event_data.add("key", key_value)
 
                 self._event_manager.call_event("login", login_event_data)
 
@@ -197,11 +216,10 @@ class c_client_bl:
                 data = {
                     "socket": self._socket_obj,
                     "arguments": args,
-                    "key": try_to_get_key(self._client_info)
+                    "key": try_to_get_key(self._client_info)  # None of fail
                 }
 
-                print(data)
-
+                # Call the wrapping function for receive photo operation
                 status = receive_photo(data)
 
                 # Write to log the information
@@ -234,10 +252,7 @@ class c_client_bl:
             if message == DISCONNECT_MSG:
                 self._event_manager.call_event("disconnect", None)
             else:
-                receive_event = c_event()
-                receive_event.add("message", message)
-
-                self._event_manager.call_event("receive", receive_event)
+                self.__update_field(message)
 
     #  endregion
 
@@ -246,6 +261,12 @@ class c_client_bl:
     def register_callback(self, event_name: str, function: any, function_name: str, get_args: bool = True):
         self._event_manager.register(event_name, function, function_name, get_args)
 
+    def __update_field(self, message):
+        receive_event = c_event()
+        receive_event.add("message", message)
+
+        self._event_manager.call_event("receive", receive_event)
+
     def __create_users_file(self):
 
         # Avoid recreate new file
@@ -253,7 +274,7 @@ class c_client_bl:
         if os.path.exists(self._save_file):
             return
 
-        data = {"version": "2.0"}
+        data = {"version": "2.0"}  # will use to validate
 
         with open(self._save_file, 'w') as file:
             json.dump(data, file)
@@ -269,7 +290,14 @@ class c_client_bl:
             json.dump(data, f)
 
     def get_user_field(self, index) -> any:
-        pass
+        result = None
+
+        with open(self._save_file, 'r') as f:
+            data = json.load(f)
+
+            result = try_to_extract(data, index)
+
+        return result
 
     #  endregion
 
