@@ -94,14 +94,9 @@ class c_protocol_db(c_protocol, ABC):
             connection = sqlite3.connect(self._database_name)
             cursor = connection.cursor()
 
-            _pass = cipher_suite.encrypt(information[1].encode()).decode()
-            print(information[1])
-            print(len(information[1]))
-            print(_pass)
-
             cursor.execute("""
             INSERT INTO users (username, password, key) VALUES (?, ?, ?);
-            """, (information[0], _pass, key.decode()))
+            """, (information[0], cipher_suite.encrypt(information[1].encode()).decode(), key.decode()))
 
             success = True
         except Exception as e:
