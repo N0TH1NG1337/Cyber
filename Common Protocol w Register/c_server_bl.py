@@ -1,8 +1,9 @@
 """
     Server_BL.py - Server Business Layer
 
-    last update : 05/04/2024
+    last update : 20/04/2024
 """
+import time
 
 #  region Libraries
 
@@ -85,11 +86,12 @@ class c_client_handle:
                 return_msg = self._protocol_manager.create_response(cmd, args, self._client_info)
 
                 if not self._client_info["logged_in"]:
-                    if self._protocol_manager.call("database").get_last_success():
+                    database_protocol: c_protocol_db = self._protocol_manager.call("database")
+                    if database_protocol.get_last_success():
 
                         _, raw_args = parse_data(return_msg)
 
-                        self._client_info["key"] = Fernet(raw_args[3].encode())
+                        self._client_info["key"] = Fernet(database_protocol.get_last_key().encode())
 
                         self._client_info["username"] = args[0]
                         self._client_info["logged_in"] = True
@@ -110,26 +112,48 @@ class c_client_handle:
 
         self._event_manager.call_event("disconnect", disconnect_event)
 
-    def force_disconnect(self):
-        pass
+    def force_disconnect(self) -> bool:
+        """
+            Call the client to disconnect from the server
+        """
+
+        call_for_disconnect = self._protocol_manager.create_request(DISCONNECT_MSG, None, self._client_info)
+        if call_for_disconnect is None:
+            return False
+
+        self._client_info["socket"].send(call_for_disconnect.encode(FORMAT))
+        return True
 
     #  endregion
+
+    def is_valid(self) -> bool:
+        """
+            Checks if Current Client Handle is not Value
+        """
+
+        # TODO ! Add checks for socket / thread
+        return self.get("ip") is not None and self.get("port")
+
+    def is_this_client(self, addr: tuple) -> bool:
+        """
+            Compares current client to other information
+        """
+
+        # Avoid checking invalid client
+        if not self.is_valid():
+            return False
+
+        is_same_ip = self._client_info["ip"] == addr[0]
+        is_same_port = self._client_info["port"] = addr[1]
+
+        return is_same_ip and is_same_port
 
     def get(self, index) -> any:
         """
             Returns Client Information based index name
         """
 
-        # Since Python cant handle by itself
-        # Need to create function that wraps the action
-
-        try:
-
-            value = self._client_info[index]
-            return value
-
-        except Exception:
-            return None
+        return try_to_extract(self._client_info, index)
 
     def set(self, index, value) -> None:
         """
@@ -313,6 +337,26 @@ class c_server_bl:
 
         # call and pass the event object of server receive event
         self._event_manager.call_event("server_receive", event)
+
+    def kick_client(self, client_addr: tuple) -> bool:
+        """
+            Force the client to disconnect
+        """
+
+        try:
+            compare_data = (client_addr[0], int(client_addr[1]))
+
+            for client_ptr in self._clients:
+                client_handle: c_client_handle = client_ptr  # get hints :P
+
+                if client_handle.is_valid() and client_handle.is_this_client(compare_data):
+                    client_handle.force_disconnect()
+                    return True
+
+            return False
+
+        except Exception as e:
+            return False
 
     def __timeout_accept(self, time: float) -> any:
         """
