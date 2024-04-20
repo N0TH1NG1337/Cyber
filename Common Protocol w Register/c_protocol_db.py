@@ -1,7 +1,7 @@
 """
     Protocol_db.py - protocol version for database
 
-    last update : 05/04/2024
+    last update : 20/04/2024
 """
 
 #  region Libraries
@@ -26,6 +26,7 @@ class c_protocol_db(c_protocol, ABC):
 
         self._last_error: str = ""
         self._last_success: bool = False
+        self._last_key_used: str = None
 
         self._database_name: str = "Users.db"
 
@@ -52,7 +53,7 @@ class c_protocol_db(c_protocol, ABC):
 
             if self._last_success:
                 # TODO : Remake and set Const in Protocol.py
-                response = f"success,{cmd},{args[0]},{args[1]}"
+                response = f"success,{cmd},{args[0]}"
 
                 if key is not None:
                     response = response + f",{key}"
@@ -93,10 +94,14 @@ class c_protocol_db(c_protocol, ABC):
             connection = sqlite3.connect(self._database_name)
             cursor = connection.cursor()
 
+            _pass = cipher_suite.encrypt(information[1].encode()).decode()
+            print(information[1])
+            print(len(information[1]))
+            print(_pass)
+
             cursor.execute("""
             INSERT INTO users (username, password, key) VALUES (?, ?, ?);
-            """, (cipher_suite.encrypt(information[0].encode()),
-                  cipher_suite.encrypt(information[1].encode()), key.decode()))
+            """, (information[0], _pass, key.decode()))
 
             success = True
         except Exception as e:
@@ -107,12 +112,16 @@ class c_protocol_db(c_protocol, ABC):
             connection.commit()
             connection.close()
 
-        return success, key.decode()
+        self._last_key_used = key.decode()
 
-    def __login_user(self, information) -> bool:
+        return success, self._last_key_used
+
+    def __login_user(self, information) -> (bool, str):
 
         connection = None
         success = False
+
+        key = None
 
         try:
             connection = sqlite3.connect(self._database_name)
@@ -123,8 +132,15 @@ class c_protocol_db(c_protocol, ABC):
             received_data = cursor.fetchone()
 
             if received_data:
-                password_raw = received_data[2]
-                if password_raw == information[1]:
+
+                # Due to some odd reason our encryption value different,
+                # Although it is the same key
+                key = received_data[3]
+                cipher = Fernet(received_data[3])
+                original = cipher.decrypt(received_data[2].encode()).decode()
+                received = cipher.decrypt(information[1].encode()).decode()
+
+                if original == received:
                     success = True
                 else:
                     raise Exception("incorrect password")
@@ -138,12 +154,17 @@ class c_protocol_db(c_protocol, ABC):
         if connection:
             connection.close()
 
-        return success
+        self._last_key_used = key
+
+        return success, None
 
     #  endregion
 
     def get_last_success(self) -> bool:
         return self._last_success
+
+    def get_last_key(self) -> str:
+        return self._last_key_used
 
     def get_cmds(self) -> list:
         """
