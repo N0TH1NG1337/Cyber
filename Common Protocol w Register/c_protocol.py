@@ -1,7 +1,7 @@
 """
     Protocol.py - general protocol file
 
-    last update : 05/04/2024
+    last update : 20/04/2024
 """
 
 #  region Libraries
@@ -100,19 +100,27 @@ def parse_data(raw_data: str) -> any:
         return raw_data, None
 
 
+def try_to_extract(data: dir, index: any) -> any:
+    """
+        Will try to find value by index and return it
+    """
+
+    try:
+
+        value = data[index]
+        return value
+
+    except Exception as e:
+
+        return None
+
+
 def try_to_get_key(data: dir) -> any:
     """
         Will try to find the encryption key and return it
     """
 
-    try:
-
-        key = data["key"]
-        return key
-
-    except Exception as e:
-
-        return None
+    return try_to_extract(data, "key")
 
 
 # TODO ! Create only 2 function and inside will be determination for type
