@@ -1,7 +1,7 @@
 """
     Client_GUI.py - Client Application Later
 
-    last update : 05/04/2024
+    last update : 20/04/2024
 """
 
 #  region Libraries
@@ -80,12 +80,11 @@ class c_client_gui:
         # Setup images
         self.__setup_images()
 
-        # After we set up images we set the window size
+        # Set up Window Size
         self._window.geometry("{}x{}".format(self._images["background"]["size"][0],
                                              self._images["background"]["size"][1]))
 
-        # Now we need to set up the background of our window with
-        # our background image
+        # Set up background
         self._back_canvas = Canvas(self._window,
                                    width=self._images["background"]["size"][0],
                                    height=self._images["background"]["size"][1])
@@ -96,6 +95,7 @@ class c_client_gui:
         # In-Application title
         self._back_canvas.create_text(20, 30, text="Client", font=FONT_TITLE, fill=COLOR_DARK_GRAY, anchor="nw")
 
+        # Create UI Elements
         self.__create_elements()
 
     def __create_elements(self):
@@ -230,11 +230,12 @@ class c_client_gui:
 
             if not self._client.get_success():
 
-                # Show the error code of the failure
+                # Show the error in case of failure
                 raise Exception(self._client.get_last_error())
 
             else:
 
+                # Set up Events Callbacks
                 self._client.register_callback("disconnect",
                                                self.__on_event_disconnect,
                                                "gui_disconnect_event", False)
@@ -255,6 +256,7 @@ class c_client_gui:
                 self._ui["disconnect_button"].config(state="normal")
                 self._ui["login_button"].config(state="normal")
 
+                # Create Login Window
                 self.__on_event_create_login_window()
 
         except Exception as e:
@@ -268,6 +270,7 @@ class c_client_gui:
             DisConnect Event
         """
 
+        # Start the process of disconnection from server
         result = self._client.disconnect()
 
         if result:
@@ -331,18 +334,20 @@ class c_client_gui:
             self._ui["send_button"].config(state="normal")
             self._ui["login_button"].config(state="disabled")
 
-            username, password, key = event.get("username"), event.get("password"), event.get("key")
-
-            user_data = {
-                "password": password,
-                "key": key
-            }
-
-            self._client.add_user_field(username, user_data)
+            username, key = event.get("username"), event.get("key")
 
             # Show Info
             messagebox.showinfo(f"Welcome {username}",
                                 "You can close the Login Window and use the client")
+
+            if event.get("type") == "LOGIN":
+                return
+
+            user_data = {
+                "key": key
+            }
+
+            self._client.add_user_field(username, user_data)
 
         else:
             # If we are not logged in
@@ -353,7 +358,15 @@ class c_client_gui:
         username = event.get("username")
         password = event.get("password")
 
-        contact_information = f"{username},{password}"
+        key = try_to_extract(self._client.get_user_field(username), "key")
+
+        # We don't want to send anything without a key
+        if key is None:
+            return
+
+        cipher = Fernet(key.encode())
+
+        contact_information = f"{username},{cipher.encrypt(password.encode()).decode()}"
         self._client.send_data("LOGIN", contact_information)
 
     def __on_event_send_register(self, event):
@@ -368,11 +381,14 @@ class c_client_gui:
             Create Login Window Event
         """
 
+        # We don't have active window
+        # can create new one.
         if self._login_obj is None:
 
-            self._login_obj = c_login_gui()
-            self._login_obj.setup_window(self._window)
+            self._login_obj = c_login_gui()  # Create Login GUI Object
+            self._login_obj.setup_window(self._window)  # Set up Window
 
+            # Set up Events Callbacks
             self._login_obj.register_callback("register",
                                               self.__on_event_send_register,
                                               "gui_register_callback")
@@ -385,6 +401,7 @@ class c_client_gui:
                                               self.__on_event_destroy_login_window,
                                               "gui_login_callback", False)
 
+            # Draw the login Window
             self._login_obj.draw()
 
     def __on_event_destroy_login_window(self):
@@ -401,7 +418,6 @@ class c_client_gui:
 
 
 #  region Entry Point
-
 
 def main():
     c_client_gui().draw()
