@@ -1,7 +1,7 @@
 """
     Server_GUI.py - Server Application Later
 
-    last update : 06/04/2024
+    last update : 20/04/2024
 """
 
 #  region Libraries
@@ -135,8 +135,7 @@ class c_server_gui:
         self._ui["client_table"] = tk_extension.Treeview(self._back_canvas, columns=("ip", "port"))
         self._ui["client_table"].place(x=10 + 100, y=150 + 80 * 3)
 
-        self._ui["client_table"].heading("#0", text="id")
-        self._ui["client_table"].column("#0", width=120, minwidth=120)
+        self._ui["client_table"].column("#0", width=0, minwidth=0)
 
         self._ui["client_table"].heading("ip", text="client ip")
         self._ui["client_table"].column("ip", width=120, minwidth=120)
@@ -288,6 +287,7 @@ class c_server_gui:
         """
 
         client_addr = event.get("address")
+        client_index = len(self._ui["client_table"].get_children())
 
         self._ui["client_table"].insert("", "end", values=(client_addr[0], client_addr[1]))
 
@@ -344,7 +344,7 @@ class c_server_gui:
         if self._last_client is not None:
             values = self._ui["client_table"].item(self._last_client)["values"]
 
-            # self._server.kick_client((values[0], values[1]))
+            self._server.kick_client((values[0], values[1]))
 
             self._last_client = None
             self._ui["kick_button"].config(state="disabled")
