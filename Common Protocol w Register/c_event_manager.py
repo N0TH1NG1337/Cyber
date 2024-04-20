@@ -4,6 +4,8 @@
     last update : 05/04/2024
 """
 
+from c_protocol import try_to_extract
+
 
 def convert_args_to_dir(*args) -> dir:
     """
@@ -32,13 +34,17 @@ def convert_args_to_dir(*args) -> dir:
 class c_event:
 
     def __init__(self, *args):
+        # _event_data will store the current event information in dir
+        # will get the event object as argument in callback
+        # and access the data
+
         self._event_data = convert_args_to_dir(*args)
 
-    def add(self, index: str, value: any) -> None:
+    def add(self, index: str, value: any) -> None:  # NOTE ! can be also to update argument
         self._event_data[index] = value
 
     def get(self, index) -> any:
-        return self._event_data[index]
+        return try_to_extract(self._event_data, index)
 
 
 class c_event_manager:
